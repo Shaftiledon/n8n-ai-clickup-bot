@@ -1,0 +1,299 @@
+{
+  "name": "My workflow 52",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "229b1df8-9b41-4e53-8d58-90ee05ef646f",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        -336
+      ],
+      "id": "c24ea577-0de8-48f5-b209-a96e45573861",
+      "name": "Webhook",
+      "webhookId": "229b1df8-9b41-4e53-8d58-90ee05ef646f"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.clickup.com/api/v2/task/{{ $json.content.parts[0].text }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        816,
+        144
+      ],
+      "id": "ce39a205-329a-4fce-9489-27415f1524cf",
+      "name": "Get Task(Pseudo ClickUp Node)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "KTSEqSNttKjrQbAn",
+          "name": "Header Auth account 8"
+        },
+        "clickUpApi": {
+          "id": "qARBFFZXwzTTKgOD",
+          "name": "ClickUp account 3"
+        },
+        "clickUpOAuth2Api": {
+          "id": "HZj5rNSScRILKIgh",
+          "name": "ClickUp account 2"
+        },
+        "httpBasicAuth": {
+          "id": "dDSu8j1rG5d0GSAJ",
+          "name": "Unnamed credential 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-pro",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-pro"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a project management bot. Your job is to extract the\n'task_id' and 'target_status_hint' from the user's message.\nThe task_id will look like '869b5xjne' or 'abc-123'.\nThe hint is what the user wants to do (e.g., \"done\", \"finished\", \"in review\").\n\nRespond *only* with a valid JSON object.\n\nExample:\nUser: \"I'm finished with task 869b4g4c7\"\n{\"task_id\": \"869b4g4c7\", \"target_status_hint\": \"finished\"}\n\nUser:\n{{ $json.body.message.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        176,
+        160
+      ],
+      "id": "34839851-32ef-4b13-b2ec-b9d74dd66abb",
+      "name": "Task ID and Status Extractor",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Q5nuKY9nGdYMjaRD",
+          "name": "Google Gemini(PaLM) Api account 25"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.clickup.com/api/v2/list/{{ $json.list.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1136,
+        -240
+      ],
+      "id": "f8c0c6f5-c142-4080-834d-91049953fffa",
+      "name": "Get List.id",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "KTSEqSNttKjrQbAn",
+          "name": "Header Auth account 8"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a smart project bot. Your job is to find the single best status *name* from the `available_statuses` array that matches the user's `hint`.\n\nThe `available_statuses` is an array of JSON objects. You must extract the `status` value from one of those objects.\n\nRespond *only* with the single, lowercase status string.\n\n---\nEXAMPLE:\nHint: \"finished\"\nAvailable: [{\"status\": \"to do\", \"color\": \"#fff\"}, {\"status\": \"in progress\", \"color\": \"#123\"}, {\"status\": \"complete\", \"color\": \"#456\"}]\n\ncomplete\n---\n\nHere is the real data:\nHint: \"{{ $('Task ID and Status Extractor').item.json.content.parts.first().text }}\"\nAvailable: \"{{ $('Get List.id').item.json.statuses }}\""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        192
+      ],
+      "id": "21b983be-d2d4-4e35-8f32-ca7d3c9078bd",
+      "name": "Best Matching List Status to User input",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "2M6gFmNU5QbaON1N",
+          "name": "Google Gemini(PaLM) Api account 9"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.clickup.com/api/v2/task/{{ $('Get Task(Pseudo ClickUp Node)').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "={{ $json.content.parts[0].text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1808,
+        -192
+      ],
+      "id": "79736f66-d8d1-4bdb-97e0-8de3f535678f",
+      "name": "Updating to the correct status in Clickup",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "KTSEqSNttKjrQbAn",
+          "name": "Header Auth account 8"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-pro",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-pro"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Extract just the task_id from the input text. For example, \"8h3g2b\"\n\nUser Input:\n {{ $json.content.parts[0].text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -192
+      ],
+      "id": "5f095113-837c-4f36-9334-d1879253b9d8",
+      "name": "Extract Task ID",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "2M6gFmNU5QbaON1N",
+          "name": "Google Gemini(PaLM) Api account 9"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Task ID does not exist:  {{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        128
+      ],
+      "id": "6cea991e-2149-4f8d-a380-c7cf5b9cc61f",
+      "name": "ID_not_exist"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Task ID and Status Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Task(Pseudo ClickUp Node)": {
+      "main": [
+        [
+          {
+            "node": "Get List.id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task ID and Status Extractor": {
+      "main": [
+        [
+          {
+            "node": "Extract Task ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get List.id": {
+      "main": [
+        [
+          {
+            "node": "Best Matching List Status to User input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Best Matching List Status to User input": {
+      "main": [
+        [
+          {
+            "node": "Updating to the correct status in Clickup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Task ID": {
+      "main": [
+        [
+          {
+            "node": "Get Task(Pseudo ClickUp Node)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e36c8ead-e338-4bf9-8758-57654576f1ef",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d543ec0fa2db13330fa340cbee40874a5466a2d350b90957168eeaec89beefa6"
+  },
+  "id": "V4k7IJND3VyDQICZ",
+  "tags": []
+}
